@@ -26,8 +26,8 @@
 		<Video_Alpha>255</Video_Alpha>
 		<Camera_Alpha>0</Camera_Alpha>
 	<Enable_Kaleidoscope>1</Enable_Kaleidoscope>
-		<Num__of_Sector>3</Num__of_Sector>
-		<Angle>-119.388</Angle>
+		<Num__of_Sector>2</Num__of_Sector>
+		<Angle>-180</Angle>
 		<Kx>0.5</Kx>
 		<Ky>0.5</Ky>
 	</Mixer>
