@@ -16,6 +16,7 @@ void ofApp::setup() {
 	loadAssets();
 	initBuffers();
 	initShaders();
+	init3DObjects();
 }
 
 void ofApp::initShaders() {
@@ -24,6 +25,8 @@ void ofApp::initShaders() {
 
 void ofApp::initBuffers() {
 	fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
+	fbo2.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
+	fbo3.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 
 	ofSetLogLevel(OF_LOG_VERBOSE);
 	fbo.checkGLSupport();
@@ -32,10 +35,24 @@ void ofApp::initBuffers() {
 void ofApp::loadAssets(){
 	ofLoadImage(imgMichel, "michel.jpg"); //load texture
 	skyfall.loadMovie("skyfall.mp4"); //load video
-	skyfall.play(); //play it
+	//skyfall.play(); //play it
 
 	imageRes = imgMichel.getWidth() / imgMichel.getHeight();
 	videoRes = skyfall.getWidth() / skyfall.getHeight();
+}
+
+void ofApp::init3DObjects() {
+	//sphapes
+	sphere.set(250, 80);
+	sphere.enableNormals();
+	//sphere.setGlobalPosition(ofGetWidth() / 2, ofGetHeight() / 2, 0);
+	sphere.mapTexCoords(0, 0, fbo2.getWidth(), fbo2.getHeight());
+	sphere.rotate(180, 0, 1, 0);
+	originalVerticesList = sphere.getMesh().getVertices();
+
+	//light and materials
+	light.setPosition(0, 0, 1200);
+	light2.setPosition(0, 0, -1200);
 }
 
 void ofApp::initParameters() {
@@ -78,9 +95,24 @@ void ofApp::initParameters() {
 	mixerGroup.add(kangle.setup("Angle", 0, -180, 180));
 	mixerGroup.add(kx.setup("Kx", 0.5, 0, 1));
 	mixerGroup.add(ky.setup("Ky", 0.5, 0, 1));
-	gui.minimizeAll();//minimize all other groups
 	gui.add(&mixerGroup);
 
+	//add group to deform shape
+	shapeDeformer.setup("Shape Deformer");
+	shapeDeformer.add(radius.setup("Radius", 250, 0, 500));
+	shapeDeformer.add(deform.setup("Deform", 0.3, 0, 1.5));
+	shapeDeformer.add(deformFreq.setup("Deform Frequencies", 3, 0, 10));
+	shapeDeformer.add(extrude.setup("Extrude", 1, 0, 1));
+	gui.add(&shapeDeformer);
+
+	//Add group for mixing final fbo
+	fboMixer.setup("Final Fbo Mixer");
+	fboMixer.add(show2d.setup("Show 2D", 255, 0, 255));
+	fboMixer.add(show3d.setup("Show 3D", 255, 0, 255));
+	gui.add(&fboMixer);
+
+
+	gui.minimizeAll();//minimize all other groups
 	//load saved parameters
 	gui.loadFromFile("settings.xml");
 	showGui = true;
@@ -98,6 +130,61 @@ void ofApp::update(){
 		camera.update();
 	}
 
+	deformShape();
+}
+
+void ofApp::deformShape() {
+	vector<ofPoint> &vertices = sphere.getMesh().getVertices();
+	ofMesh &mesh = sphere.getMesh();
+	/*
+	for (int i = 0; i < vertices.size(); i++)
+	{
+		ofPoint v = originalVerticesList[i];//We get the original vertice
+		v.normalize();
+
+		//define sin of v at angle dF
+		float sx = sin(v.x * deformFreq);
+		float sy = sin(v.y * deformFreq);
+		float sz = sin(v.z * deformFreq);
+
+		//redefine v
+		v.x = sy * sz * deform;
+		v.y = sx * sz * deform;
+		v.z = sx * sy * deform;
+		v *= radius;
+		//send v into the vertice memory address
+		vertices[i] = v;
+	}
+	*/
+	//extrude mesh
+	ofPixels pixels;
+	fbo2.readToPixels(pixels);//get pixels value into ofPixels object
+
+	for (int i = 0; i < vertices.size(); i++) {
+		ofPoint v = originalVerticesList[i];//We get the original vertice
+		ofVec2f t = mesh.getTexCoords()[i];
+		t.x = ofClamp(t.x, 0, pixels.getWidth() - 1);
+		t.y = ofClamp(t.y, 0, pixels.getHeight() - 1);
+
+		float br = pixels.getColor(t.x, t.y).getBrightness();//get brightness of the pixel
+		vertices[i] =  v * (1 + br / 255.0 * extrude);
+	}
+	
+	//attemps to redefine normals
+	/*for (int i = 0; i < vertices.size(); i += 3)
+	{
+		ofPoint v0 = vertices[i];//We get the original vertice
+		ofPoint v1 = vertices[i+1];//We get the original vertice
+		ofPoint v2 = vertices[i+2];//We get the original vertice
+		
+		ofVec3f v0v1 = v1 - v0;
+		ofVec3f v1v2 = v2 - v1;
+
+		ofVec3f faceNormal = v0v1.cross(v1v2);
+		mesh.setNormal(i, faceNormal);
+		mesh.setNormal(i+1, faceNormal);
+		mesh.setNormal(i+2, faceNormal);
+	}*/
 }
 
 void ofApp::stripePattern() {
@@ -225,14 +312,60 @@ void ofApp::draw2D() {
 
 }
 
+void ofApp::draw3D(){
+	camOrbit();
+
+	cam.begin();
+	//Light & material
+	//ofEnableLighting(); //auto enable by light.enalbe()
+	light.draw();
+	light2.draw();
+	light.enable();
+	light2.enable();
+	material.begin();
+	ofEnableDepthTest();
+
+	ofScale(1, -1, 1); //cam inverts Y axis (up) by default
+	//sphere.drawAxes(100);
+	//ofSetColor(ofColor::mediumPurple);
+	//sphere.drawNormals(100, false);
+	ofSetColor(ofColor::white);
+	//sphere.drawWireframe();
+	fbo2.getTextureReference().bind();
+	sphere.draw();
+	fbo2.getTextureReference().unbind();
+
+	ofDisableDepthTest();
+	material.end();
+	light.disable();
+	light2.disable();
+	ofDisableLighting();
+	cam.end();
+
+}
+
+void ofApp::camOrbit() {
+	float time = ofGetElapsedTimef();
+	float longitude = 10 * time;
+	float latitude = 10 * sin(time * 0.8);
+	float radius = 600 + 50 * sin(time * 0.4);
+	cam.orbit(longitude, latitude, radius, ofPoint(0, 0, 0));
+
+	//cout << time << endl; //other mthod for print into consol (C++ Native) ref : //ofLog(OF_LOG_NOTICE, "Hello World");
+}
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-	//compute fbo
+	ofBackground(globalBackground);
+
+	//compute fbo 2D
 	fbo.begin();
 	draw2D();
 	fbo.end();
-	//draw fbo with shaders
+
+	//draw fbo with shaders (kaleidoscope)
+	fbo2.begin();
+	ofEnableSmoothing();
 	if (kenable) {
 		shader.begin();
 		bindToKaleido();
@@ -243,7 +376,18 @@ void ofApp::draw(){
 	if (kenable) {
 		shader.end();
 	}
+	fbo2.end();
 
+	//draw3D
+	fbo3.begin();
+	ofBackground(0, 0);
+	draw3D();
+	fbo3.end();
+
+	ofSetColor(255, show2d);
+	fbo2.draw(0, 0);
+	ofSetColor(255, show3d);
+	fbo3.draw(0, 0);
 
 	//draw GUi
 	if (showGui) {
@@ -283,11 +427,29 @@ void ofApp::keyPressed(int key){
 	}
 	if (key == 'c' || key == 'C')
 	{
-		ofSetLogLevel(OF_LOG_VERBOSE);
-		camera.listDevices();
-		camera.setDeviceID(0);
-		camera.setDesiredFrameRate(30);
-		camera.initGrabber(1280, 720);
+		if (camera.isInitialized())
+		{
+			camera.close();
+		}
+		else
+		{
+			ofSetLogLevel(OF_LOG_VERBOSE);
+			camera.listDevices();
+			camera.setDeviceID(0);
+			camera.setDesiredFrameRate(30);
+			camera.initGrabber(1280, 720);
+		}
+	}
+	if (key == 'p' || key == 'P')
+	{
+		if (skyfall.isPlaying())
+		{
+			skyfall.stop();
+		}
+		else
+		{
+			skyfall.play();
+		}
 	}
 }
 

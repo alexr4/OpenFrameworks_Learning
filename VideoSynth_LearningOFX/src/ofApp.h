@@ -32,6 +32,14 @@ class ofApp : public ofBaseApp{
 		ofxGuiGroup mixerGroup;
 		ofxFloatSlider imageAlpha, videoAlpha, cameraAlpha;
 
+		//add gui to deform sphere shape
+		ofxGuiGroup shapeDeformer;
+		ofxFloatSlider radius, deform, deformFreq, extrude;
+
+		//add gui for final fbo mixer
+		ofxGuiGroup fboMixer;
+		ofxFloatSlider show2d, show3d;
+
 		//various variable
 		bool showGui;
 		ofTexture imgMichel; //object intended to draw image only (not manipulate pixels)
@@ -40,11 +48,18 @@ class ofApp : public ofBaseApp{
 		ofVideoGrabber camera;
 
 		//FBO & Shaders
-		ofFbo fbo;
+		ofFbo fbo, fbo2, fbo3;
 		ofShader shader;
 		ofxToggle kenable;
 		ofxIntSlider ksector;
 		ofxFloatSlider kangle, kx, ky;
+
+		//3D objects
+		ofSpherePrimitive sphere;
+		ofEasyCam cam;
+		ofLight light, light2;
+		ofMaterial material;
+		vector<ofPoint> originalVerticesList;
 
 		//methods
 		void setup();
@@ -61,6 +76,10 @@ class ofApp : public ofBaseApp{
 		void initShaders();
 		void bindToKaleido();
 		void draw2D();
+		void init3DObjects();
+		void draw3D();
+		void camOrbit();
+		void deformShape();
 
 		//events and interaction 
 		void keyPressed(int key);
