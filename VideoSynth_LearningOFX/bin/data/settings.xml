@@ -1,7 +1,7 @@
 <Parameters>
 	<countX>200</countX>
 	<stepX>10</stepX>
-	<twistX>-10.35</twistX>
+	<twistX>-16.2</twistX>
 <Parameters/>
 <scale>0.4</scale>
 <Global>
@@ -23,24 +23,25 @@
 	<PinchY>0</PinchY>
 <Mixer>
 		<Image_Alpha>0</Image_Alpha>
-		<Video_Alpha>0</Video_Alpha>
+		<Video_Alpha>255</Video_Alpha>
 		<Camera_Alpha>255</Camera_Alpha>
 	<Enable_Kaleidoscope>1</Enable_Kaleidoscope>
-		<Num__of_Sector>2</Num__of_Sector>
-		<Angle>-90</Angle>
-		<Kx>0.5</Kx>
-		<Ky>0</Ky>
+		<Num__of_Sector>17</Num__of_Sector>
+		<Angle>37.5161</Angle>
+		<Kx>0.460818</Kx>
+		<Ky>0.0408163</Ky>
 	<Show_2D>27.3214</Show_2D>
 		<Show_3D>255</Show_3D>
 	</Mixer>
 <Final_Fbo_Mixer>
-		<Show_2D>52.0408</Show_2D>
-		<Show_3D>255</Show_3D>
+		<Show_2D>128.488</Show_2D>
+		<Show_3D>23.148</Show_3D>
+	<automate>1</automate>
 	</Final_Fbo_Mixer>
 <Shape_Deformer>
-		<Radius>306.122</Radius>
-		<Deform>0.543367</Deform>
-		<Deform_Frequencies>3.41837</Deform_Frequencies>
-		<Extrude>0.0561224</Extrude>
+		<Radius>201.371</Radius>
+		<Deform>0.55712</Deform>
+		<Deform_Frequencies>1.83673</Deform_Frequencies>
+		<Extrude>0.139683</Extrude>
 	</Shape_Deformer>
 </Parameters>

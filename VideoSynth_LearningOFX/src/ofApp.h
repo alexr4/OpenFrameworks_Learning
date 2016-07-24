@@ -61,6 +61,18 @@ class ofApp : public ofBaseApp{
 		ofMaterial material;
 		vector<ofPoint> originalVerticesList;
 
+		//animation
+		ofxToggle automate;
+		float phase, frequency;
+
+		//sound
+		ofSoundPlayer sound;
+		float soundLevel;
+
+		//read fil
+		ofFile file;
+		ofBuffer buffer;
+
 		//methods
 		void setup();
 		void update();
@@ -80,6 +92,13 @@ class ofApp : public ofBaseApp{
 		void draw3D();
 		void camOrbit();
 		void deformShape();
+		void animate();
+		void initAnimationParameters();
+		void initSound();
+		void analyseSound();
+		void audioIn(float *input, int buffersize, int nChannels);
+		void initFiles();
+		void readData();
 
 		//events and interaction 
 		void keyPressed(int key);

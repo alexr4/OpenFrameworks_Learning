@@ -17,6 +17,9 @@ void ofApp::setup() {
 	initBuffers();
 	initShaders();
 	init3DObjects();
+	initAnimationParameters();
+	initSound();
+	initFiles();
 }
 
 void ofApp::initShaders() {
@@ -109,6 +112,7 @@ void ofApp::initParameters() {
 	fboMixer.setup("Final Fbo Mixer");
 	fboMixer.add(show2d.setup("Show 2D", 255, 0, 255));
 	fboMixer.add(show3d.setup("Show 3D", 255, 0, 255));
+	fboMixer.add(automate.setup("automate", true));
 	gui.add(&fboMixer);
 
 
@@ -118,9 +122,36 @@ void ofApp::initParameters() {
 	showGui = true;
 }
 
+void ofApp::initAnimationParameters() {
+	phase = 0.0;
+	frequency = 0.1;
+}
+
+void ofApp::initSound() {
+	sound.loadSound("Bjork.mp3");
+	sound.setVolume(0.8);
+	sound.setLoop(true);
+
+	/*Other sound methods
+	sound.setMultiPlay(true); //Allow playing multiple instance of a sound
+	sound.setSpeed(float s); //manipulate speed of playback (pitching)
+	sound.setPan(float p);//pan sound on the right(1) and left(-1) channel (stereo)
+	*/
+
+	soundLevel = 0;
+	ofSoundStreamSetup(0, 1, 44100, 128, 4);
+}
+
+void ofApp::initFiles(){
+	file.open("eeg.txt");
+	buffer.set(file);
+}
+
 //--------------------------------------------------------------
 void ofApp::update(){
-	ofSetWindowTitle("FPS : "+ofToString(ofGetFrameRate()));
+	ofSetWindowTitle("FPS : "+ofToString(ofGetFrameRate())+" Elapsed Time : "+ofToString(ofGetElapsedTimef()) + " Elapsed Time : " + ofToString(ofGetElapsedTimeMicros()) + " Elapsed Time : " + ofToString(ofGetElapsedTimeMillis()));
+
+	ofSoundUpdate();
 
 	skyfall.update();//update video playing (get next frame)
 
@@ -130,38 +161,45 @@ void ofApp::update(){
 		camera.update();
 	}
 
-	deformShape();
+	if (automate)
+	{
+		analyseSound();
+		deformShape();
+		animate();
+		readData();
+	}
+
 }
 
 void ofApp::deformShape() {
 	vector<ofPoint> &vertices = sphere.getMesh().getVertices();
 	ofMesh &mesh = sphere.getMesh();
-	/*
+	
 	for (int i = 0; i < vertices.size(); i++)
 	{
 		ofPoint v = originalVerticesList[i];//We get the original vertice
 		v.normalize();
 
 		//define sin of v at angle dF
-		float sx = sin(v.x * deformFreq);
+		/*float sx = sin(v.x * deformFreq);
 		float sy = sin(v.y * deformFreq);
 		float sz = sin(v.z * deformFreq);
 
 		//redefine v
 		v.x = sy * sz * deform;
 		v.y = sx * sz * deform;
-		v.z = sx * sy * deform;
+		v.z = sx * sy * deform;*/
 		v *= radius;
 		//send v into the vertice memory address
 		vertices[i] = v;
 	}
-	*/
+	
 	//extrude mesh
 	ofPixels pixels;
 	fbo2.readToPixels(pixels);//get pixels value into ofPixels object
 
 	for (int i = 0; i < vertices.size(); i++) {
-		ofPoint v = originalVerticesList[i];//We get the original vertice
+		ofPoint v = vertices[i];//We get the original vertice
 		ofVec2f t = mesh.getTexCoords()[i];
 		t.x = ofClamp(t.x, 0, pixels.getWidth() - 1);
 		t.y = ofClamp(t.y, 0, pixels.getHeight() - 1);
@@ -185,6 +223,54 @@ void ofApp::deformShape() {
 		mesh.setNormal(i+1, faceNormal);
 		mesh.setNormal(i+2, faceNormal);
 	}*/
+}
+
+void ofApp::animate() {
+
+	kangle = ofGetElapsedTimef();
+
+	float dt = 1.0 / 60.0; //60 fps;
+	phase += dt * frequency * M_TWO_PI; //(1/.1) = 10 seconds -> *M_TWO_PI to convert into radians value
+	float value = sin(phase);
+	kx = ofMap(value, -1, 1, .45, .55);
+
+	float phase1 = 0.1 * ofGetElapsedTimef();
+	extrude = ofNoise(phase1)*0.25;
+}
+
+void ofApp::analyseSound()
+{
+	float *spectrum = ofSoundGetSpectrum(128);
+	double level = 0;
+	for (int i = 0; i < 128; i++)
+	{
+		level += spectrum[i] * spectrum[i];
+	}
+	level = sqrt(level / 128);
+	level += soundLevel;
+	float newrad = ofMap(level, 0, 1, 200, 300, true);
+	radius = radius + 0.1 * (newrad - radius);
+
+}
+
+void ofApp::readData() {
+	if (buffer.isLastLine())
+	{
+		buffer.resetLineReader();
+	}
+	else
+	{
+		string line = buffer.getNextLine();
+		vector<string> value = ofSplitString(line, "\t");
+		if (value.size() >= 128)
+		{
+			float value1 = ofToFloat(value[1]);
+			float value2 = ofToFloat(value[5]);
+			float value3 = ofToFloat(value[100]);
+			show2d = 127 + ofMap(value2 - value1, -9400, 9100, 0, 1) * 255;
+			show3d = ofMap(value3 - value1, -1700, 1650, 0, 1) * 100 * 255;
+		}
+	}
 }
 
 void ofApp::stripePattern() {
@@ -397,9 +483,21 @@ void ofApp::draw(){
 
 void ofApp::exit() {
 	gui.saveToFile("settings.xml");
+	ofSoundStreamStop();
+	ofSoundStreamClose();
 }
 
 //--------------------------------------------------------------
+void ofApp::audioIn(float *input, int buffersize, int nChannels) {
+	double v = 0;
+	for (int i = 0; i < buffersize; i++)
+	{
+		v += input[i] * input[i];
+	}
+	v = sqrt(v / buffersize);
+	soundLevel = v;
+}
+
 void ofApp::keyPressed(int key){
 	if (key == 'g' || key == 'G') {
 		showGui = !showGui;
@@ -449,6 +547,17 @@ void ofApp::keyPressed(int key){
 		else
 		{
 			skyfall.play();
+		}
+	}
+	if (key == 'm' || key == 'M')
+	{
+		if (!sound.getIsPlaying())
+		{
+			sound.play();
+		}
+		else
+		{
+			sound.stop();
 		}
 	}
 }
